@@ -1,0 +1,58 @@
+name: Analyze Fog Project
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  analyze-fog:
+    runs-on: self-hosted
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Find Fog Project
+        run: |
+          echo "=== Searching for Fog project ==="
+          find / -name "fog" -type d 2>/dev/null | head -20
+          find / -name "*fog*" -type d 2>/dev/null | grep -i fog | head -20
+      
+      - name: Analyze PHP Files
+        run: |
+          echo "=== Looking for PHP driver files ==="
+          find / -path "*/fog*" -name "*driver*" -type f 2>/dev/null | grep -E "\.(php|conf)$"
+          find / -path "*/fog*" -name "*.php" -type f 2>/dev/null | head -30
+      
+      - name: Check Fog Structure
+        run: |
+          if [ -d "/var/www/fog" ]; then
+            echo "=== Fog found in /var/www/fog ==="
+            ls -la /var/www/fog/
+            find /var/www/fog -name "*.php" -type f | head -50
+          elif [ -d "/opt/fog" ]; then
+            echo "=== Fog found in /opt/fog ==="
+            ls -la /opt/fog/
+            find /opt/fog -name "*.php" -type f | head -50
+          else
+            echo "=== Searching all locations ==="
+            find / -type f -name "*.php" 2>/dev/null | grep -i fog | head -50
+          fi
+      
+      - name: Analyze Driver Insert Page
+        run: |
+          echo "=== Analyzing driver insertion code ==="
+          for file in $(find / -path "*/fog*" -name "*.php" 2>/dev/null | grep -E "(driver|insert)" | head -10); do
+            echo "=== File: $file ==="
+            cat "$file" 2>/dev/null || echo "Cannot read file"
+          done
+      
+      - name: Generate Report
+        run: |
+          echo "=== Analysis Complete ===" > /tmp/fog_analysis.txt
+          echo "Timestamp: $(date)" >> /tmp/fog_analysis.txt
+          echo "=== PHP Files Found ===" >> /tmp/fog_analysis.txt
+          find / -path "*/fog*" -name "*.php" -type f 2>/dev/null >> /tmp/fog_analysis.txt
+          cat /tmp/fog_analysis.txt
